@@ -3,7 +3,6 @@ import ezdxf
 from ezdxf.enums import TextEntityAlignment
 
 import json
-from pprint import pprint
 from math import ceil
 
 class CutPrinter():
@@ -95,8 +94,11 @@ class CutPrinter():
         for detail in details:
             cursor_y -= self.block_height * self.global_scale
             self.print_single_detail((cursor_x, cursor_y), detail)
+
+
     def c(self, l):
         return l * self.global_scale
+
 
     def print_single_detail(self, point, detail):
         self.add_rect(point[0], point[1], detail[0], self.beam_height, attrs={'color': 1})
@@ -107,10 +109,10 @@ class CutPrinter():
         for element in detail[1]:
             self.add_rect(cursor_x, cursor_y, element, self.beam_height, attrs={'color': 5})
             dim = self.msp.add_linear_dim(
-                                          base=(cursor_x, dim_y_pos),  # location of the dimension line
-                                          p1=(cursor_x, cursor_y),  # 1st measurement point
-                                          p2=(cursor_x + element, cursor_y),  # 2nd measurement point
-                                          dimstyle="GOST 50",  # default dimension style
+                                          base=(cursor_x, dim_y_pos),
+                                          p1=(cursor_x, cursor_y),
+                                          p2=(cursor_x + element, cursor_y),
+                                          dimstyle="GOST 50",
                                           )
             dim.render()
             self.msp.add_text(
@@ -124,7 +126,7 @@ class CutPrinter():
 
 
 if __name__ == '__main__':
-    cp = CutPrinter('out.dxf', DEBUG=True)
+    cp = CutPrinter('out.dxf')
     with open('tasks.json', encoding='UTF-8') as ifile:
         j = json.load(ifile)
         for key in j.keys():
