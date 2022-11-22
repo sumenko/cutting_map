@@ -6,7 +6,7 @@ import json
 from math import ceil
 
 class CutPrinter():
-    def __init__(self, fname, global_scale=53, DEBUG=False):
+    def __init__(self, fname, global_scale=53, DEBUG=False, mark_keys=None):
         self.fname = fname
         self.doc = ezdxf.readfile('50.dxf')
         self.msp = self.doc.modelspace()
@@ -15,7 +15,7 @@ class CutPrinter():
         self.DEBUG = DEBUG
         self.page_width = 297
         self.page_height = 210
-        self.page_x_space = 10
+        self.page_x_space = 20
         self.page_y_space = 10
         self.beam_height = 200
         names = self.doc.layouts.names()
@@ -29,6 +29,7 @@ class CutPrinter():
         self.block_height = 20
         self.blocks_per_page = int((self.page_height - (self.page_top_offset + self.page_bottom_offset)) /
                                    (self.block_height))
+        self.mark_keys = mark_keys
 
 
     def save(self):
@@ -64,8 +65,9 @@ class CutPrinter():
             end_detail = min((page + 1) * self.blocks_per_page - 1, len(solution))
             details = solution[start_detail:end_detail]
             title = f'{taskName} {page+1} / {pages_num}'
+            id = taskName
             point = (page_x, self.page_y)
-            self.print_task_page(point, title, details)
+            self.print_task_page(point, title, details, id)
     
             page_x += (self.page_width + self.page_x_space) * self.global_scale
         self.page_y += (self.page_height + self.page_y_space) * self.global_scale
@@ -74,7 +76,7 @@ class CutPrinter():
         return (x * self.global_scale,
                 y * self.global_scale)
 
-    def print_task_page(self, point, title, details):
+    def print_task_page(self, point, title, details, id=None):
         """ Prints single solution page """
         cursor_x = point[0] + (25) * self.global_scale
         cursor_y = point[1] + (self.page_height - 15) * self.global_scale
@@ -90,17 +92,24 @@ class CutPrinter():
                  ).set_placement(
                  (cursor_x, cursor_y),
                  align=TextEntityAlignment.BOTTOM_LEFT)
-        
+        # print(title)
         for detail in details:
+            detail_marks = {}
+            for l in detail[1]:
+                key = f'{id}x{l}'
+                if not l in detail_marks.keys():
+                    detail_marks[l] = []
+                detail_marks[l].append(self.mark_keys[key].pop(-1))
+            # print('\t', detail_marks)
             cursor_y -= self.block_height * self.global_scale
-            self.print_single_detail((cursor_x, cursor_y), detail)
+            self.print_single_detail((cursor_x, cursor_y), detail, detail_marks=detail_marks)
 
 
     def c(self, l):
         return l * self.global_scale
 
 
-    def print_single_detail(self, point, detail):
+    def print_single_detail(self, point, detail, detail_marks={}):
         self.add_rect(point[0], point[1], detail[0], self.beam_height, attrs={'color': 1})
         cursor_x = point[0]
         cursor_y = point[1]
@@ -115,6 +124,20 @@ class CutPrinter():
                                           dimstyle="GOST 50",
                                           )
             dim.render()
+            # print(detail_marks[element])
+            try:
+                mark = detail_marks[element].pop(-1)
+            except KeyError as k:
+                print(k)
+                mark = '?'
+            self.msp.add_text(
+                              mark,
+                              height=1.8*self.global_scale
+                            #   dxfattribs={'rotation': 90}
+                              ).set_placement(
+                              (cursor_x + element / 2, cursor_y + self.beam_height / 2),
+                              align=TextEntityAlignment.MIDDLE_CENTER)
+
             self.msp.add_text(
                               f'{cursor_x + element - point[0]}',
                               height=1.8*self.global_scale,
@@ -126,7 +149,18 @@ class CutPrinter():
 
 
 if __name__ == '__main__':
-    cp = CutPrinter('out.dxf')
+    mark_keys = {}
+    with open('marked.json', encoding='UTF-8') as mfile:
+        m = json.load(mfile)
+        for key in m.keys():
+            mark = m[key][0][0] + str(m[key][0][1])
+            if not key in mark_keys.keys():
+                mark_keys[key] = []
+            for _ in range(len(m[key])):
+                mark_keys[key].append(mark)
+    # print(mark_keys)
+    cp = CutPrinter('out.dxf', mark_keys=mark_keys)
+
     with open('tasks.json', encoding='UTF-8') as ifile:
         j = json.load(ifile)
         for key in j.keys():
