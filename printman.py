@@ -8,7 +8,7 @@ from math import ceil
 class CutPrinter():
     def __init__(self, fname, global_scale=53, DEBUG=False, mark_keys=None):
         self.fname = fname
-        self.doc = ezdxf.readfile('50.dxf')
+        self.doc = ezdxf.readfile('50_2018.dxf')
         self.msp = self.doc.modelspace()
         self.page_y = 0
         self.global_scale = global_scale
@@ -136,7 +136,7 @@ class CutPrinter():
                             #   dxfattribs={'rotation': 90}
                               ).set_placement(
                               (cursor_x + element / 2, cursor_y + self.beam_height / 2),
-                              align=TextEntityAlignment.MIDDLE_CENTER)
+                              align=TextEntityAlignment.BOTTOM_LEFT)
 
             self.msp.add_text(
                               f'{cursor_x + element - point[0]}',
@@ -166,6 +166,7 @@ if __name__ == '__main__':
         for key in j.keys():
             task = j[key]
             cp.print_task(task['solution'], task['taskName'])
+
         cp.save()
  
 
