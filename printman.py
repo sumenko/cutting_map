@@ -31,6 +31,14 @@ class CutPrinter():
                                    (self.block_height))
         self.mark_keys = mark_keys
 
+    def print_marked(self, fname):
+        doc = ezdxf.readfile('50_2018.dxf')
+        msp = self.doc.modelspace()
+        for element in self.mark_keys:
+            print(element)
+            # for instance in element:
+                # print(instance)
+        doc.saveas(fname)
 
     def save(self):
         try:
@@ -153,14 +161,20 @@ if __name__ == '__main__':
     with open('marked.json', encoding='UTF-8') as mfile:
         m = json.load(mfile)
         for key in m.keys():
-            mark = m[key][0][0] + str(m[key][0][1])
-            if not key in mark_keys.keys():
-                mark_keys[key] = []
-            for _ in range(len(m[key])):
+            for instance in m[key]:
+                mark = instance[0] + str(instance[1])
+                profile = (instance[9], instance[10], instance[8])
+                p1 = (instance[2], instance[3], instance[4])
+                p2 = (instance[5], instance[6], instance[7])
+                element = (mark, profile, p1, p2)
+                print(element)
+                if not key in mark_keys.keys():
+                    mark_keys[key] = []
                 mark_keys[key].append(mark)
-    # print(mark_keys)
-    cp = CutPrinter('out.dxf', mark_keys=mark_keys)
 
+                
+    cp = CutPrinter('out.dxf', mark_keys=mark_keys)
+    # cp.print_marked('m.dxf')
     with open('tasks.json', encoding='UTF-8') as ifile:
         j = json.load(ifile)
         for key in j.keys():
