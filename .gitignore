@@ -1,2 +1,12 @@
 venv/
 *.dxf
+*.url
+*.original
+*.dxf
+*.json
+*.bak
+*.lsp
+__pycache__/
+*.err
+*.dwg
+*.txt
