@@ -6,9 +6,12 @@ import json
 from math import ceil
 
 class CutPrinter():
+    __template_dxf = '50_02.dxf'
+
     def __init__(self, fname, global_scale=53, DEBUG=False, mark_keys=None):
         self.fname = fname
-        self.doc = ezdxf.readfile('50_2018.dxf')
+        self.doc = ezdxf.readfile(self.__template_dxf)
+        # self.doc = ezdxf.new('R2000', setup=True)
         self.msp = self.doc.modelspace()
         self.page_y = 0
         self.global_scale = global_scale
@@ -18,11 +21,8 @@ class CutPrinter():
         self.page_x_space = 20
         self.page_y_space = 10
         self.beam_height = 200
-        names = self.doc.layouts.names()
-        names.remove('Model')
-        current_lo = self.doc.layouts.new('New')
-        for name in names:
-            self.doc.layouts.delete(name)
+        self.layouts_to_remove = self.doc.layouts.names()
+        self.layouts_to_remove.remove('Model')
 
         self.page_top_offset = 10
         self.page_bottom_offset = 10
@@ -32,15 +32,17 @@ class CutPrinter():
         self.mark_keys = mark_keys
 
     def print_marked(self, fname):
-        doc = ezdxf.readfile('50_2018.dxf')
+        doc = ezdxf.readfile(self.__template_dxf)
         msp = self.doc.modelspace()
-        for element in self.mark_keys:
-            print(element)
+        # for element in self.mark_keys:
+        #     print(element)
             # for instance in element:
                 # print(instance)
         doc.saveas(fname)
 
     def save(self):
+        for lo in self.layouts_to_remove:
+            self.doc.layouts.delete(lo)
         try:
             self.doc.saveas(self.fname)
         except PermissionError as p:
@@ -62,23 +64,29 @@ class CutPrinter():
                 self.msp.add_line(p1, p2, dxfattribs=attrs)
 
 
-    def print_task(self, solution, taskName):
+    def print_task(self, solution, taskName, key=1):
         """ Prints all pages of the solution """
         page_x = 0
         pages_num = ceil((len(solution) * self.block_height) /
                      (self.page_height - (self.page_bottom_offset + self.page_top_offset)))
-
+        
         for page in range(pages_num):
             start_detail = page * self.blocks_per_page
             end_detail = min((page + 1) * self.blocks_per_page - 1, len(solution))
             details = solution[start_detail:end_detail]
             title = f'{taskName} {page+1} / {pages_num}'
+            layout_name = f'{key}.{page+1}'
+
             id = taskName
             point = (page_x, self.page_y)
             self.print_task_page(point, title, details, id)
+
+            self.create_layout(layout_name=layout_name, rect = (point, (15741, 11130)))
+
     
             page_x += (self.page_width + self.page_x_space) * self.global_scale
         self.page_y += (self.page_height + self.page_y_space) * self.global_scale
+
     
     def point(self, x, y):
         return (x * self.global_scale,
@@ -111,6 +119,24 @@ class CutPrinter():
             # print('\t', detail_marks)
             cursor_y -= self.block_height * self.global_scale
             self.print_single_detail((cursor_x, cursor_y), detail, detail_marks=detail_marks)
+    
+    def create_layout(self, layout_name, rect):  
+        lo = self.doc.layouts.new(layout_name)
+        lo.page_setup(size=(297,210), margins = (0,0,0,0), units='mm',
+                      offset=(0,0), rotation=0, scale=16,name='A4')
+        p1, _ = rect
+
+        width = self.page_width
+        height = self.page_height
+        bottom_scaled = p1[0] + width * self.global_scale / 2
+        left_scaled = p1[1] + height * self.global_scale / 2
+        page_height_scaled = height * self.global_scale
+
+        lo.add_viewport(
+            center=(width/2, height/2),
+            size=(width, height),
+            view_center_point=(bottom_scaled, left_scaled),
+            view_height=page_height_scaled)
 
 
     def c(self, l):
@@ -123,16 +149,16 @@ class CutPrinter():
         cursor_y = point[1]
         dim_y_pos = cursor_y - self.c(7)
 
+        detail[1].sort(reverse=True)
         for element in detail[1]:
             self.add_rect(cursor_x, cursor_y, element, self.beam_height, attrs={'color': 5})
             dim = self.msp.add_linear_dim(
                                           base=(cursor_x, dim_y_pos),
                                           p1=(cursor_x, cursor_y),
                                           p2=(cursor_x + element, cursor_y),
-                                          dimstyle="GOST 50",
+                                          dimstyle="Standart",
                                           )
             dim.render()
-            # print(detail_marks[element])
             try:
                 mark = detail_marks[element].pop(-1)
             except KeyError as k:
@@ -141,14 +167,13 @@ class CutPrinter():
             self.msp.add_text(
                               mark,
                               height=1.8*self.global_scale
-                            #   dxfattribs={'rotation': 90}
                               ).set_placement(
                               (cursor_x + element / 2, cursor_y + self.beam_height / 2),
-                              align=TextEntityAlignment.BOTTOM_LEFT)
+                              align=TextEntityAlignment.MIDDLE_CENTER)
 
             self.msp.add_text(
                               f'{cursor_x + element - point[0]}',
-                              height=1.8*self.global_scale,
+                              height=1.6*self.global_scale,
                               dxfattribs={'rotation': 90}
                               ).set_placement(
                               (cursor_x + element - self.c(.5) , dim_y_pos + self.c(.5)),
@@ -174,12 +199,13 @@ if __name__ == '__main__':
 
                 
     cp = CutPrinter('out.dxf', mark_keys=mark_keys)
-    # cp.print_marked('m.dxf')
+
     with open('tasks.json', encoding='UTF-8') as ifile:
         j = json.load(ifile)
         for key in j.keys():
             task = j[key]
-            cp.print_task(task['solution'], task['taskName'])
+            i_key = int(key) + 1
+            cp.print_task(task['solution'], task['taskName'], key=i_key)
 
         cp.save()
  
