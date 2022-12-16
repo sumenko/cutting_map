@@ -69,31 +69,36 @@ class CutPrinter():
         page_x = 0
         pages_num = ceil((len(solution) * self.block_height) /
                      (self.page_height - (self.page_bottom_offset + self.page_top_offset)))
-        
+        digits = len(str(len(solution)))
         for page in range(pages_num):
             start_detail = page * self.blocks_per_page
             end_detail = min((page + 1) * self.blocks_per_page - 1, len(solution))
             details = solution[start_detail:end_detail]
-            title = f'{taskName} {page+1} / {pages_num}'
+            title = f'#{key} {taskName} {page+1} / {pages_num}'
             layout_name = f'{key}.{page+1}'
 
             id = taskName
             point = (page_x, self.page_y)
-            self.print_task_page(point, title, details, id)
+            
+            self.print_task_page(point, title, details, id=id, 
+                                 start=page*(self.blocks_per_page-1)+1,
+                                 digits=digits)
 
             self.create_layout(layout_name=layout_name, rect = (point, (15741, 11130)))
 
     
             page_x += (self.page_width + self.page_x_space) * self.global_scale
-        self.page_y += (self.page_height + self.page_y_space) * self.global_scale
+        self.page_y -= (self.page_height + self.page_y_space) * self.global_scale
 
     
     def point(self, x, y):
         return (x * self.global_scale,
                 y * self.global_scale)
 
-    def print_task_page(self, point, title, details, id=None):
+    def print_task_page(self, point, title, details, id=None, start=1, digits=1):
         """ Prints single solution page """
+        # id - название задачи
+        # start - номер 1-го элемента на странице
         cursor_x = point[0] + (25) * self.global_scale
         cursor_y = point[1] + (self.page_height - 15) * self.global_scale
 
@@ -109,6 +114,7 @@ class CutPrinter():
                  (cursor_x, cursor_y),
                  align=TextEntityAlignment.BOTTOM_LEFT)
         # print(title)
+        counter = 0
         for detail in details:
             detail_marks = {}
             for l in detail[1]:
@@ -118,7 +124,16 @@ class CutPrinter():
                 detail_marks[l].append(self.mark_keys[key].pop(-1))
             # print('\t', detail_marks)
             cursor_y -= self.block_height * self.global_scale
-            self.print_single_detail((cursor_x, cursor_y), detail, detail_marks=detail_marks)
+
+            self.print_single_detail((cursor_x+5*self.global_scale, cursor_y),
+                                     detail, detail_marks=detail_marks)
+            self.msp.add_text(
+                    str(start + counter).rjust(digits, '0'),
+                    height=2.5*self.global_scale,
+                    ).set_placement(
+                    (cursor_x, cursor_y+self.beam_height/2),
+                    align=TextEntityAlignment.MIDDLE_LEFT)
+            counter += 1
     
     def create_layout(self, layout_name, rect):  
         lo = self.doc.layouts.new(layout_name)
@@ -192,20 +207,24 @@ if __name__ == '__main__':
                 p1 = (instance[2], instance[3], instance[4])
                 p2 = (instance[5], instance[6], instance[7])
                 element = (mark, profile, p1, p2)
-                print(element)
+                
                 if not key in mark_keys.keys():
                     mark_keys[key] = []
                 mark_keys[key].append(mark)
 
                 
     cp = CutPrinter('out.dxf', mark_keys=mark_keys)
+    ordered_data = [(4, 72000), (6, 63000), (3, 52200), (5, 36000), (1, 15600), (0, 13000), (2, 7800)]
+    ordered_keys = [str(key[0]) for key in ordered_data]
 
     with open('tasks.json', encoding='UTF-8') as ifile:
         j = json.load(ifile)
-        for key in j.keys():
+        
+        for task_number, key in enumerate(ordered_keys, start=1):
+            # print(key)
             task = j[key]
-            i_key = int(key) + 1
-            cp.print_task(task['solution'], task['taskName'], key=i_key)
+            # i_key = int(key) + 1
+            cp.print_task(task['solution'], task['taskName'], key=task_number)
 
         cp.save()
  
