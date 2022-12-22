@@ -7,6 +7,7 @@ from math import ceil
 
 class CutPrinter():
     __template_dxf = '50_02.dxf'
+    __block_refs = []
 
     def __init__(self, fname, global_scale=53, DEBUG=False, mark_keys=None):
         self.fname = fname
@@ -33,14 +34,19 @@ class CutPrinter():
 
     def print_marked(self, fname):
         doc = ezdxf.readfile(self.__template_dxf)
-        msp = self.doc.modelspace()
-        # for element in self.mark_keys:
-        #     print(element)
-            # for instance in element:
-                # print(instance)
+
         doc.saveas(fname)
 
     def save(self):
+        for pnum, ent in enumerate(self.__block_refs):
+            values = {
+                'OBJECT': 'Баня',
+                'ADDRESS': 'Химки',
+                'PAGE_NAME': ent[1],
+                'PNUM': str(pnum + 1)
+            }
+            ent[0].add_auto_attribs(values)
+
         for lo in self.layouts_to_remove:
             self.doc.layouts.delete(lo)
         try:
@@ -125,7 +131,7 @@ class CutPrinter():
             # print('\t', detail_marks)
             cursor_y -= self.block_height * self.global_scale
 
-            self.print_single_detail((cursor_x+5*self.global_scale, cursor_y),
+            self.print_single_detail((cursor_x+7*self.global_scale, cursor_y),
                                      detail, detail_marks=detail_marks)
             self.msp.add_text(
                     str(start + counter).rjust(digits, '0'),
@@ -152,6 +158,13 @@ class CutPrinter():
             size=(width, height),
             view_center_point=(bottom_scaled, left_scaled),
             view_height=page_height_scaled)
+
+        a = lo.add_blockref('StampWaterMarkA4', (0, 0), dxfattribs={
+                            'xscale': 1,
+                            'yscale': 1,
+                            'rotation': 0
+                            })
+        self.__block_refs.append((a, layout_name))
 
 
     def c(self, l):
